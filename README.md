@@ -230,10 +230,6 @@ A link that connects a load balancer component with a component that needs to be
 
 - `path` - A URL path where the service (component) will be accessible. For example, setting parameter as `path=/my-app` instructus load balancer component to route all requests coming to `https://my.domain/my-app/*` to the linked component.
 
-#### Destination container environment variables
-
-- `{COMPONENT_NAME}_LINK` - a URL to a service component instance.
-
 ## Providers
 
 ### `demo/docker-compose`
