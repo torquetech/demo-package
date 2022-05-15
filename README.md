@@ -14,12 +14,12 @@ Demo Package contains the following components, links, and providers.
 
 ### Components
 
-- [`demo/python-app`](#demopython-app): A Python deployable unit that does not expose HTTP connectivity option.
-- [`demo/python-service`](#demopython-service): A Python deployable unit that exposes HTTP connectivity option. Other apps and services can connect to it and use its API.
+- [`demo/python-app`](#demopython-app): A Python deployable unit that does not expose network connectivity option.
+- [`demo/python-service`](#demopython-service): A Python deployable unit that exposes network connectivity option. Other apps and services can connect to it and use its API.
 - [`demo/postgres`](#demopostgres): PostgreSQL database instance.
 - [`demo/zookeeper`](#demozookeeper): A service required by the `demo/kafka` component.
 - [`demo/kafka`](#demokafka): Kafka event-steaming service (see more at https://kafka.apache.org/)
-- [`demo/persistent-volume`](#demopersistent-volume): Data storage volume prevents data from being destroyed after each deployment using either _docker-compose_ or _Kubernetes_.
+- [`demo/persistent-volume`](#demopersistent-volume): Data storage volume prevents data from being destroyed after each deployment using either _docker compose_ or _Kubernetes_.
 - [`demo/load-balancer`](#demoload-balancer): Routes incoming traffic to services. Provides a unified external URL. Implemented by _nginx_.
 - [`demo/react-app`](#demoreact-app): React application.
 
@@ -46,7 +46,7 @@ Demo Package contains the following components, links, and providers.
 For the `demo-package` to work properly, ensure you have the following tools installed and configured in your development and CI/CD environments. Essentially, a console tool invocation for these tools should work.
 
 1. [Docker](https://docs.docker.com/get-docker/)
-2. [docker-compose](https://docs.docker.com/compose/install/)
+2. [docker compose](https://docs.docker.com/compose/install/)
 3. [Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
 4. [kubectl](https://kubernetes.io/docs/tasks/tools/)
 5. [Helm](https://helm.sh/docs/intro/install/)
@@ -256,6 +256,5 @@ Generates _Helm_ chart files, and applies them to the configured _Kubernetes_ cl
 
 #### Configuration
 
-- `registry.server` - The container registry server. The default value is `index.docker.io`.
+- `registry.server` - The container registry server. Only public images are currently supported. The default value is `index.docker.io`.
 - `registry.namespace` - The registry namespace where the images will be pushed. The default value is `user`.
-- `registry.run_login` - Should _Torque CLI_ run `docker login` command or not. The default value is `true`.
