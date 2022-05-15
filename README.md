@@ -43,7 +43,7 @@ Demo Package contains the following components, links, and providers.
 
 ## Prerequisites
 
-For the `demo-package` to work properly, make sure you have the following tools installed and configured in your development and CI/CD environments:
+For the `demo-package` to work properly, ensure you have the following tools installed and configured in your development and CI/CD environments. Essentially, a console tool invocation for these tools should work.
 
 1. [Docker](https://docs.docker.com/get-docker/)
 2. [docker-compose](https://docs.docker.com/compose/install/)
@@ -238,12 +238,24 @@ A link that connects a load balancer component with a component that needs to be
 
 ### `demo/docker-compose`
 
-Generates `docker-compose.yaml` and executes the `docker compose up` command to run all defined services.
+Generates `docker-compose.yaml` and executes the `docker compose up` command to run all instantiated components.
 
 ### `demo/terraform`
 
-Generates _Terraform HCL_ files. Currently supports only setting up _EBS AWS_ volumes.
+Generates _Terraform HCL_ files. Currently supports only setting up _EBS AWS_ volumes and storing *Terraform* state file in AWS S3.
+
+#### Configuration
+
+- `aws.region` - An AWS region as a code string like `us-east-1` or `us-west-1`. The default value is `us-east-1`.
+- `aws.s3.bucket` - An S3 bucket used for storing a *Terraform* state. The default value is `terraform-state`.
+- `aws.s3.key` - Path to the *Terraform* state file. The default value is `aws/core.tfstate`.
 
 ### `demo/k8s`
 
 Generates _Helm_ chart files, and applies them to the configured _Kubernetes_ cluster.
+
+#### Configuration
+
+- `registry.server` - The container registry server. The default value is `index.docker.io`.
+- `registry.namespace` - The registry namespace where the images will be pushed. The default value is `user`.
+- `registry.run_login` - Should _Torque CLI_ run `docker login` command or not. The default value is `true`.
