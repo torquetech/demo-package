@@ -25,7 +25,7 @@ Demo Package contains the following components, links, and providers.
 
 ### Links
 
-- [`demo/network`](#demonetwork): Provides network connectivity to the component that exposes the `HttpService` interface.
+- [`demo/network`](#demonetwork): Provides network connectivity to the component that exposes the `Service` interface.
 - [`demo/psycopg`](#demopsycopg): Links a PostgreSQL database to a python-based component.
 - [`demo/volume`](#demovolume): Mounts a data storage volume.
 - [`demo/postgres-data`](#demopostgres-data): Mounts a data storage volume to a PostgreSQL DB component.
@@ -38,6 +38,7 @@ Demo Package contains the following components, links, and providers.
 ### Providers
 
 - [`demo/docker-compose`](#demodocker-compose): Generates `docker-compose.yaml` to run all components on a local development environment.
+- [`demo/terraform`](demoterraform): Generates _Terraform HCL_ files. Currently supports only setting up _EBS AWS_ volumes.
 - [`demo/k8s`](#demok8s): Generates _Kubernetes YAML_ files to deploy the workspace to a _Kubernetes_ instance.
 
 ## Prerequisites
@@ -46,9 +47,9 @@ For the `demo-package` to work properly, make sure you have the following tools 
 
 1. [Docker](https://docs.docker.com/get-docker/)
 2. [docker-compose](https://docs.docker.com/compose/install/)
-3. [kubectl](https://kubernetes.io/docs/tasks/tools/)
-4. [Helm](https://helm.sh/docs/intro/install/)
-5. [Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+3. [Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+4. [kubectl](https://kubernetes.io/docs/tasks/tools/)
+5. [Helm](https://helm.sh/docs/intro/install/)
 
 ## Components
 
@@ -62,7 +63,7 @@ A Python deployable unit that does not expose the network connectivity option. U
 
 #### Configuration
 
-- `development_mode` - When set to `True`, tells the component to use a Dockerfile for local development that mounts the app directory and runs the app in watch (live-reload) mode.
+- `development_mode` - When set to `true`, tells the component to use a Dockerfile for local development that mounts the app directory and runs the app in watch (live-reload) mode.
 - `environment` - key/value dictionary of environment variables passed to the docker container.
 
 #### Code Scaffolding
@@ -88,7 +89,7 @@ There is no specific code or framework present in the `demo/python-app`. But you
 
 #### Local Development
 
-We recommend setting the `development_mode` flag to `True` when configuring the local development profiles. This way the component will use `Dockerfile.dev` docker image that mounts the local app directory and runs the app directly from your code.
+We recommend setting the `development_mode` flag to `true` when configuring the local development profiles. This way the component will use `Dockerfile.dev` docker image that mounts the local app directory and runs the app directly from your code.
 
 ### `demo/python-service`
 
@@ -96,14 +97,14 @@ Inherited from [`demo/python-app`](#demopython-app), it is a Python deployable u
 
 Everything else is the same as the [`demo/python-app`](#demopython-app) component.
 
-### demo/postgres
+### `demo/postgres`
 
 PostgreSQL database instance. This component does not have a dedicated directory in the workspace.
 
 #### Configuration
 
 - `version` - PostgreSQL version to use. Default 14.2
-- `password` - A root user password.
+- `password` - A root user password. You can set it yourself, or when left blank, the system will generate a random password.
 
 ### `demo/zookeeper`
 
@@ -146,7 +147,7 @@ The `demo/react-app` code was generated using the `create-react-app` utility. It
 
 #### Configuration
 
-- `development_mode` - When set to `True`, tells the component to use a Dockerfile for local development that mounts the `app` directory and runs the app in watch (reload) mode.
+- `development_mode` - When set to `true`, tells the component to use a Dockerfile for local development that mounts the `app` directory and runs the app in watch (reload) mode.
 
 #### Code Scaffolding
 
@@ -174,7 +175,7 @@ The `demo/react-app` code was generated using the `create-react-app` utility. It
 
 #### Local Development
 
-We recommend setting the `development_mode` flag to `True` when configuring the local development profiles. This way the component will use `Dockerfile.dev` docker image that mounts the local app directory and runs the app directly from your code.
+We recommend setting the `development_mode` flag to `true` when configuring the local development profiles. This way the component will use `Dockerfile.dev` docker image that mounts the local app directory and runs the app directly from your code.
 
 ## Links
 
@@ -231,13 +232,17 @@ A link that connects a load balancer component with a component that needs to be
 
 #### Destination container environment variables
 
-- `{COMPONENT_NAME}_LINK` - a URL to the Kafka instance.
+- `{COMPONENT_NAME}_LINK` - a URL to a service component instance.
 
 ## Providers
 
 ### `demo/docker-compose`
 
 Generates `docker-compose.yaml` and executes the `docker compose up` command to run all defined services.
+
+### `demo/terraform`
+
+Generates _Terraform HCL_ files. Currently supports only setting up _EBS AWS_ volumes.
 
 ### `demo/k8s`
 
