@@ -6,35 +6,58 @@
 
 from torque import v1
 
+from demo import utils
 
-class Service(v1.component.Interface):
+
+class Service(v1.component.SourceInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def link() -> v1.utils.Future[object]:
+    def link() -> utils.Future[object]:
         """TODO"""
 
 
-class HttpService(Service):
+class HttpService(v1.component.SourceInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-
-class PostgresService(Service):
-    # pylint: disable=E0211,E0213
-
-    """TODO"""
-
-    def admin() -> v1.utils.Future[object]:
+    def link() -> utils.Future[object]:
         """TODO"""
+
+
+class PostgresService(v1.component.SourceInterface):
+    # pylint: disable=E0211,E0213
+
+    """TODO"""
+
+    def link() -> utils.Future[object]:
+        """TODO"""
+
+    def admin() -> utils.Future[object]:
+        """TODO"""
+
+
+class Postgres(v1.component.DestinationInterface):
+    # pylint: disable=E0211,E0213
+
+    """TODO"""
 
     def data_path() -> str:
         """TODO"""
 
 
-class ZookeeperService(Service):
+class ZookeeperService(v1.component.SourceInterface):
+    # pylint: disable=E0211,E0213
+
+    """TODO"""
+
+    def link() -> utils.Future[object]:
+        """TODO"""
+
+
+class Zookeeper(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -43,7 +66,16 @@ class ZookeeperService(Service):
         """TODO"""
 
 
-class KafkaService(Service):
+class KafkaService(v1.component.SourceInterface):
+    # pylint: disable=E0211,E0213
+
+    """TODO"""
+
+    def link() -> utils.Future[object]:
+        """TODO"""
+
+
+class Kafka(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -51,47 +83,47 @@ class KafkaService(Service):
     def data_path() -> str:
         """TODO"""
 
-    def zookeeper(link: v1.utils.Future[object]):
+    def zookeeper(link: utils.Future[object]):
         """TODO"""
 
 
-class NetworkLink(v1.component.Interface):
+class NetworkLink(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def add(name: str, link: v1.utils.Future[object]):
+    def add(name: str, link: utils.Future[object]):
         """TODO"""
 
 
-class Volume(v1.component.Interface):
+class Volume(v1.component.SourceInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def link() -> v1.utils.Future[object]:
+    def link() -> utils.Future[object]:
         """TODO"""
 
 
-class VolumeLink(v1.component.Interface):
+class VolumeLink(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def add(name: str, mount_path: str, link: v1.utils.Future[object]):
+    def add(name: str, mount_path: str, link: utils.Future[object]):
         """TODO"""
 
 
-class SecretLink(v1.component.Interface):
+class SecretLink(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def add(name: str, key: str, link: v1.utils.Future[object]):
+    def add(name: str, key: str, link: utils.Future[object]):
         """TODO"""
 
 
-class Environment(v1.component.Interface):
+class Environment(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -100,7 +132,7 @@ class Environment(v1.component.Interface):
         """TODO"""
 
 
-class PythonModules(v1.component.Interface):
+class PythonModules(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -112,7 +144,7 @@ class PythonModules(v1.component.Interface):
         """TODO"""
 
 
-class HttpLoadBalancer(v1.component.Interface):
+class HttpLoadBalancer(v1.component.DestinationInterface):
     # pylint: disable=E0211,E0213
 
     """TODO"""

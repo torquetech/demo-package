@@ -19,14 +19,14 @@ from demo import utils
 class Component(v1.component.Component):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {
             "path": str
         }
     }
 
-    _CONFIGURATION = {
+    CONFIGURATION = {
         "defaults": {
             "development_mode": False,
             "environment": {}
@@ -38,22 +38,6 @@ class Component(v1.component.Component):
             }
         }
     }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -101,24 +85,24 @@ class Component(v1.component.Component):
         self._version = p.stdout.decode("utf8").strip()
         return self._version
 
-    def _image(self, deployment: v1.deployment.Deployment) -> str:
+    def _image(self) -> str:
         """TODO"""
 
-        return f"{deployment.name}-component-{self.name}:{self._get_version()}"
+        return f"{self.context.deployment_name}-component-{self.name}:{self._get_version()}"
 
-    def _add_network_link(self, name: str, link: v1.utils.Future[object]):
+    def _add_network_link(self, name: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.NetworkLink(name, link)
         self._network_links.append(link)
 
-    def _add_volume_link(self, name: str, mount_path: str, link: v1.utils.Future[object]):
+    def _add_volume_link(self, name: str, mount_path: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.VolumeLink(name, mount_path, link)
         self._volume_links.append(link)
 
-    def _add_secret_link(self, name: str, key: str, link: v1.utils.Future[object]):
+    def _add_secret_link(self, name: str, key: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.SecretLink(name, key, link)
@@ -166,15 +150,12 @@ class Component(v1.component.Component):
 
         shutil.copytree(source_path, target_path)
 
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
+    def on_build(self):
         """TODO"""
 
         cmd = [
             "docker", "build", ".",
-            "-t", self._image(deployment)
+            "-t", self._image()
         ]
 
         if self.configuration["development_mode"]:
@@ -182,7 +163,7 @@ class Component(v1.component.Component):
 
         subprocess.run(cmd, env=os.environ, cwd=self._path(), check=True)
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
         env = [
@@ -192,10 +173,10 @@ class Component(v1.component.Component):
 
         env += self._environment
 
-        image = self.binds.images.push(self._image(deployment))
+        image = self.interfaces.images.push(self._image())
 
         if not self.configuration["development_mode"]:
-            self.binds.deployments.create(self.name,
+            self.interfaces.deployments.create(self.name,
                                           image,
                                           None,
                                           None,
@@ -207,14 +188,14 @@ class Component(v1.component.Component):
                                           self._secret_links)
 
         else:
-            if not self.binds.development:
+            if not self.interfaces.development:
                 raise RuntimeError("providers.Development: implementation not found")
 
             local_volume_links = [
-                types.VolumeLink("app", "/app", v1.utils.Future(self.parameters["path"]))
+                types.VolumeLink("app", "/app", utils.Future(self.parameters["path"]))
             ]
 
-            self.binds.development.create_deployment(self.name,
+            self.interfaces.development.create_deployment(self.name,
                                                      image,
                                                      None,
                                                      None,

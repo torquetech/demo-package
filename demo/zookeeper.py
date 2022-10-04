@@ -10,36 +10,11 @@ from demo import components
 from demo import providers
 from demo import types
 from demo import volume
+from demo import utils
 
 
 class Component(v1.component.Component):
     """TODO"""
-
-    _PARAMETERS = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -62,13 +37,13 @@ class Component(v1.component.Component):
         self._volume_links = []
         self._service_link = None
 
-    def _add_volume_link(self, name: str, mount_path: str, link: v1.utils.Future[object]):
+    def _add_volume_link(self, name: str, mount_path: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.VolumeLink(name, mount_path, link)
         self._volume_links.append(link)
 
-    def _link(self) -> v1.utils.Future[object]:
+    def _link(self) -> utils.Future[object]:
         """TODO"""
 
         return self._service_link
@@ -83,44 +58,36 @@ class Component(v1.component.Component):
 
         return [
             components.VolumeLink(add=self._add_volume_link),
-            components.ZookeeperService(link=self._link,
-                                        data_path=self._data_path)
+            components.Service(link=self._link),
+            components.ZookeeperService(link=self._link),
+            components.Zookeeper(data_path=self._data_path)
         ]
 
-    def on_create(self):
+    def on_apply(self):
         """TODO"""
 
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self._service_link = self.binds.services.create(self.name, "tcp", 2181, 2181)
+        self._service_link = self.interfaces.services.create(self.name, "tcp", 2181, 2181)
 
         env = [
             types.KeyValue("ALLOW_ANONYMOUS_LOGIN", "yes")
         ]
 
-        self.binds.deployments.create(self.name,
-                                      "bitnami/zookeeper:latest",
-                                      None,
-                                      None,
-                                      None,
-                                      env,
-                                      None,
-                                      None,
-                                      self._volume_links,
-                                      None)
+        self.interfaces.deployments.create(self.name,
+                                           "bitnami/zookeeper:latest",
+                                           None,
+                                           None,
+                                           None,
+                                           env,
+                                           None,
+                                           None,
+                                           self._volume_links,
+                                           None)
 
 
 class DataLink(volume.Link):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {}
     }
@@ -131,15 +98,14 @@ class DataLink(volume.Link):
 
         return super().on_requirements() | {
             "zk": {
-                "interface": components.ZookeeperService,
-                "bind_to": "destination",
+                "interface": components.Zookeeper,
                 "required": True
             },
         }
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
-        self.binds.dst.add(self.source,
-                           self.binds.zk.data_path(),
-                           self.binds.src.link())
+        self.interfaces.dst.add(self.source,
+                                self.interfaces.zk.data_path(),
+                                self.interfaces.src.link())

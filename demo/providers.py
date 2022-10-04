@@ -7,9 +7,10 @@
 from torque import v1
 
 from demo import types
+from demo import utils
 
 
-class Images(v1.provider.Interface):
+class Images(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -20,29 +21,29 @@ class Images(v1.provider.Interface):
         raise RuntimeError(f"{v1.utils.fqcn(self)}: push: not implemented")
 
 
-class Secrets(v1.provider.Interface):
+class Secrets(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def create(self, name: str, entries: [types.KeyValue]) -> v1.utils.Future[object]:
+    def create(self, name: str, entries: [types.KeyValue]) -> utils.Future[object]:
         """TODO"""
 
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class Services(v1.provider.Interface):
+class Services(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def create(self, name: str, type: str, port: int, target_port: int) -> v1.utils.Future[object]:
+    def create(self, name: str, type: str, port: int, target_port: int) -> utils.Future[object]:
         """TODO"""
 
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class Deployments(v1.provider.Interface):
+class Deployments(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -63,7 +64,7 @@ class Deployments(v1.provider.Interface):
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class Development(v1.provider.Interface):
+class Development(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -85,18 +86,18 @@ class Development(v1.provider.Interface):
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create_deployment: not implemented")
 
 
-class PersistentVolumes(v1.provider.Interface):
+class PersistentVolumes(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def create(self, name: str, size: int) -> v1.utils.Future[object]:
+    def create(self, name: str, size: int) -> utils.Future[object]:
         """TODO"""
 
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class HttpLoadBalancers(v1.provider.Interface):
+class HttpLoadBalancers(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
@@ -107,18 +108,18 @@ class HttpLoadBalancers(v1.provider.Interface):
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class PersistentVolumesProvider(v1.provider.Interface):
+class PersistentVolumesProvider(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""
 
-    def create(self, name: str, size: int) -> v1.utils.Future[object]:
+    def create(self, name: str, size: int) -> utils.Future[object]:
         """TODO"""
 
         raise RuntimeError(f"{v1.utils.fqcn(self)}: create: not implemented")
 
 
-class HttpIngressLinks(v1.provider.Interface):
+class HttpIngressLinks(v1.bond.Interface):
     # pylint: disable=E0211,E0213
 
     """TODO"""

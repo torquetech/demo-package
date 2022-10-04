@@ -12,33 +12,12 @@ from demo import components
 class Link(v1.link.Link):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {
             "mount_point": str
         }
     }
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -47,26 +26,15 @@ class Link(v1.link.Link):
         return {
             "src": {
                 "interface": components.Volume,
-                "bind_to": "source",
                 "required": True
             },
             "dst": {
                 "interface": components.VolumeLink,
-                "bind_to": "destination",
                 "required": True
             },
         }
 
-    def on_create(self):
-        """TODO"""
-
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
         self.interfaces.dst.add(self.source,

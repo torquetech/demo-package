@@ -17,6 +17,7 @@ from torque import v1
 
 from demo import providers
 from demo import types
+from demo import utils
 
 
 LoadBalancerLink = collections.namedtuple("LoadBalancerLink", [
@@ -39,332 +40,15 @@ _LOAD_BALANCER_TEMPLATE = """server {
 """
 
 
-class Images(providers.Images):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def push(self, image: str) -> str:
-        """TODO"""
-
-        return image
-
-
-class Secrets(providers.Secrets):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, entries: [types.KeyValue]) -> v1.utils.Future[object]:
-        """TODO"""
-
-        return v1.utils.Future(entries)
-
-
-class Services(providers.Services):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, type: str, port: int, target_port: int) -> v1.utils.Future[object]:
-        """TODO"""
-
-        return v1.utils.Future((type.lower(), name, port))
-
-
-class Deployments(providers.Deployments):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self,
-               name: str,
-               image: str,
-               cmd: [str],
-               args: [str],
-               cwd: str,
-               env: [types.KeyValue],
-               ports: [types.Port],
-               network_links: [types.NetworkLink],
-               volume_links: [types.VolumeLink],
-               secret_links: [types.SecretLink]):
-        """TODO"""
-
-        if args:
-            if cmd:
-                cmd += args
-
-            else:
-                cmd = args
-
-        self.provider.add_deployment(name,
-                                     image,
-                                     cmd,
-                                     cwd,
-                                     env,
-                                     network_links,
-                                     volume_links,
-                                     secret_links,
-                                     [])
-
-
-class Development(providers.Development):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create_deployment(self,
-                          name: str,
-                          image: str,
-                          cmd: [str],
-                          args: [str],
-                          cwd: str,
-                          env: [types.KeyValue],
-                          ports: [types.Port],
-                          network_links: [types.NetworkLink],
-                          volume_links: [types.VolumeLink],
-                          secret_links: [types.SecretLink],
-                          local_volume_links: [types.VolumeLink]):
-        """TODO"""
-
-        if args:
-            if cmd:
-                cmd += args
-
-            else:
-                cmd = args
-
-        self.provider.add_deployment(name,
-                                     image,
-                                     cmd,
-                                     cwd,
-                                     env,
-                                     network_links,
-                                     volume_links,
-                                     secret_links,
-                                     local_volume_links)
-
-
-class PersistentVolumes(providers.PersistentVolumes):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, size: int) -> v1.utils.Future[object]:
-        """TODO"""
-
-        self.provider.add_volume(name)
-
-        return v1.utils.Future(name)
-
-
-class PersistentVolumesProvider(providers.PersistentVolumesProvider):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, size: int) -> v1.utils.Future[str]:
-        """TODO"""
-
-        return v1.utils.Future("<ignored_value>")
-
-
-class HttpLoadBalancers(providers.HttpLoadBalancers):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {
-            "port": 8080
-        },
-        "schema": {
-            "port": int
-        }
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self):
-        """TODO"""
-
-        self.provider.add_load_balancer(self.configuration["port"])
-
-
-class HttpIngressLinks(providers.HttpIngressLinks):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, path: str, network_link: types.NetworkLink):
-        """TODO"""
-
-        self.provider.add_load_balancer_link(path, network_link)
-
-
 class Provider(v1.provider.Provider):
     """TODO"""
 
-    _CONFIGURATION = {
+    CONFIGURATION = {
         "defaults": {},
         "schema": {
             v1.schema.Optional("workspace_path"): str
         }
     }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -378,6 +62,10 @@ class Provider(v1.provider.Provider):
 
         if "workspace_path" not in self.configuration:
             self.configuration["workspace_path"] = None
+
+        with self.context as ctx:
+            ctx.add_hook("apply", self._apply)
+            ctx.add_hook("delete", self._delete)
 
     def _convert_environment(self, env: [types.KeyValue]) -> [dict]:
         """TODO"""
@@ -496,7 +184,7 @@ class Provider(v1.provider.Provider):
                 conf_path = os.path.join(workspace_path, conf_path)
                 conf_path = os.path.normpath(conf_path)
 
-            service[f"torque-lb"] = {
+            service["torque-lb"] = {
                 "image": "nginx:stable",
                 "ports": [f"{self._load_balancer}:80"],
                 "volumes": [{
@@ -508,7 +196,7 @@ class Provider(v1.provider.Provider):
 
         return service
 
-    def _print_info(self, deployment: v1.deployment.Deployment):
+    def _print_info(self):
         """TODO"""
 
         print("\nComponent ip addresses:\n")
@@ -521,7 +209,7 @@ class Provider(v1.provider.Provider):
 
         p = subprocess.run(cmd,
                            env=os.environ,
-                           cwd=deployment.path,
+                           cwd=self.context.path(),
                            check=True,
                            capture_output=True)
 
@@ -530,15 +218,18 @@ class Provider(v1.provider.Provider):
         for container in containers:
             name = container["Name"]
 
+            deployment = self.context.deployment_name
+            deployment = deployment.replace(".", "")
+
             cmd = [
                 "docker", "inspect",
-                f"--format={{{{.NetworkSettings.Networks.{deployment.name}_default.IPAddress}}}}",
+                f"--format={{{{.NetworkSettings.Networks.{deployment}_default.IPAddress}}}}",
                 name
             ]
 
             p = subprocess.run(cmd,
                                env=os.environ,
-                               cwd=deployment.path,
+                               cwd=self.context.path(),
                                check=True,
                                capture_output=True)
 
@@ -557,21 +248,19 @@ class Provider(v1.provider.Provider):
         if self._load_balancer:
             print("\n" f"Load balancer: http://localhost:{self._load_balancer}")
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def _apply(self):
         """TODO"""
 
-        deployments = self._deployments | self._generate_load_balancer(deployment.path)
+        deployments = self._deployments | \
+            self._generate_load_balancer(self.context.path())
 
         compose = {
             "services": deployments,
             "volumes": self._volumes
         }
 
-        with open(f"{deployment.path}/docker-compose.yaml", "w", encoding="utf8") as file:
+        with open(f"{self.context.path()}/docker-compose.yaml", "w", encoding="utf8") as file:
             file.write(yaml.safe_dump(compose, sort_keys=False))
-
-        if deployment.dry_run:
-            return
 
         cmd = [
             "docker", "compose", "up",
@@ -579,15 +268,12 @@ class Provider(v1.provider.Provider):
         ]
 
         print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd, env=os.environ, cwd=deployment.path, check=True)
+        subprocess.run(cmd, env=os.environ, cwd=self.context.path(), check=True)
 
-        self._print_info(deployment)
+        self._print_info()
 
-    def on_delete(self, deployment: v1.deployment.Deployment):
+    def _delete(self):
         """TODO"""
-
-        if deployment.dry_run:
-            return
 
         cmd = [
             "docker", "compose", "down",
@@ -595,7 +281,7 @@ class Provider(v1.provider.Provider):
         ]
 
         print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd, env=os.environ, cwd=deployment.path, check=False)
+        subprocess.run(cmd, env=os.environ, cwd=self.context.path(), check=False)
 
     def add_volume(self, name: str):
         """TODO"""
@@ -657,3 +343,272 @@ class Provider(v1.provider.Provider):
 
         with self._lock:
             self._load_balancer_links.append(LoadBalancerLink(service, path, port))
+
+
+class Images(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Images
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def push(self, image: str) -> str:
+        """TODO"""
+
+        return image
+
+
+class Secrets(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Secrets
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, entries: [types.KeyValue]) -> utils.Future[object]:
+        """TODO"""
+
+        return utils.Future(entries)
+
+
+class Services(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Services
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, type: str, port: int, target_port: int) -> utils.Future[object]:
+        """TODO"""
+
+        return utils.Future((type.lower(), name, port))
+
+
+class Deployments(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Deployments
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self,
+               name: str,
+               image: str,
+               cmd: [str],
+               args: [str],
+               cwd: str,
+               env: [types.KeyValue],
+               ports: [types.Port],
+               network_links: [types.NetworkLink],
+               volume_links: [types.VolumeLink],
+               secret_links: [types.SecretLink]):
+        """TODO"""
+
+        if args:
+            if cmd:
+                cmd += args
+
+            else:
+                cmd = args
+
+        self.interfaces.dc.add_deployment(name,
+                                          image,
+                                          cmd,
+                                          cwd,
+                                          env,
+                                          network_links,
+                                          volume_links,
+                                          secret_links,
+                                          [])
+
+
+class Development(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Development
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create_deployment(self,
+                          name: str,
+                          image: str,
+                          cmd: [str],
+                          args: [str],
+                          cwd: str,
+                          env: [types.KeyValue],
+                          ports: [types.Port],
+                          network_links: [types.NetworkLink],
+                          volume_links: [types.VolumeLink],
+                          secret_links: [types.SecretLink],
+                          local_volume_links: [types.VolumeLink]):
+        """TODO"""
+
+        if args:
+            if cmd:
+                cmd += args
+
+            else:
+                cmd = args
+
+        self.interfaces.dc.add_deployment(name,
+                                          image,
+                                          cmd,
+                                          cwd,
+                                          env,
+                                          network_links,
+                                          volume_links,
+                                          secret_links,
+                                          local_volume_links)
+
+
+class PersistentVolumes(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.PersistentVolumes
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, size: int) -> utils.Future[object]:
+        """TODO"""
+
+        self.interfaces.dc.add_volume(name)
+
+        return utils.Future(name)
+
+
+class PersistentVolumesProvider(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.PersistentVolumesProvider
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, size: int) -> utils.Future[str]:
+        """TODO"""
+
+        return utils.Future("<ignored_value>")
+
+
+class HttpLoadBalancers(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.HttpLoadBalancers
+
+    CONFIGURATION = {
+        "defaults": {
+            "port": 8080
+        },
+        "schema": {
+            "port": int
+        }
+    }
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self):
+        """TODO"""
+
+        self.interfaces.dc.add_load_balancer(self.configuration["port"])
+
+
+class HttpIngressLinks(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.HttpIngressLinks
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "dc": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, path: str, network_link: types.NetworkLink):
+        """TODO"""
+
+        self.interfaces.dc.add_load_balancer_link(path, network_link)

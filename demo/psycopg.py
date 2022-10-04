@@ -18,7 +18,7 @@ class Link(network.Link):
     """TODO"""
 
     # pylint: disable=W0212
-    _CONFIGURATION = v1.utils.merge_dicts(network.Link._CONFIGURATION, {
+    CONFIGURATION = v1.utils.merge_dicts(network.Link.CONFIGURATION, {
         "defaults": {
             "database": "postgres"
         },
@@ -34,22 +34,18 @@ class Link(network.Link):
         return super().on_requirements() | {
             "pg": {
                 "interface": components.PostgresService,
-                "bind_to": "source",
                 "required": True
             },
             "mod": {
                 "interface": components.PythonModules,
-                "bind_to": "destination",
                 "required": True
             },
             "sec": {
                 "interface": components.SecretLink,
-                "bind_to": "destination",
                 "required": True
             },
             "env": {
                 "interface": components.Environment,
-                "bind_to": "destination",
                 "required": True
             }
         }
@@ -62,7 +58,7 @@ class Link(network.Link):
         template_path = f"{utils.module_path()}/templates/psycopg.py.template"
         template = jinja2.Template(utils.load_file(template_path))
 
-        target_path = f"{self.binds.mod.path()}/{self.source}.py"
+        target_path = f"{self.interfaces.mod.path()}/{self.source}.py"
 
         if os.path.exists(v1.utils.resolve_path(target_path)):
             raise RuntimeError(f"{target_path}: file already exists")
@@ -71,16 +67,16 @@ class Link(network.Link):
             file.write(template.render(COMPONENT=self.source.upper()))
             file.write("\n")
 
-        self.binds.mod.add_requirements(["psycopg"])
+        self.interfaces.mod.add_requirements(["psycopg"])
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
-        super().on_apply(deployment)
+        super().on_apply()
 
         source = self.source.upper()
-        secret = self.binds.pg.admin()
+        secret = self.interfaces.pg.admin()
 
-        self.binds.env.add(f"{source}_PSYCOPG_DB", self.configuration["database"])
-        self.binds.sec.add(f"{source}_PSYCOPG_USER", "user", secret)
-        self.binds.sec.add(f"{source}_PSYCOPG_PASSWORD", "password", secret)
+        self.interfaces.env.add(f"{source}_PSYCOPG_DB", self.configuration["database"])
+        self.interfaces.sec.add(f"{source}_PSYCOPG_USER", "user", secret)
+        self.interfaces.sec.add(f"{source}_PSYCOPG_PASSWORD", "password", secret)

@@ -8,6 +8,7 @@ from torque import v1
 
 from demo import components
 from demo import providers
+from demo import utils
 
 
 def _validate_size(size: object) -> int:
@@ -27,33 +28,12 @@ def _validate_size(size: object) -> int:
 class Component(v1.component.Component):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {
             "size": v1.schema.Use(_validate_size)
         }
     }
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -71,7 +51,7 @@ class Component(v1.component.Component):
 
         self._volume_link = None
 
-    def _link(self) -> v1.utils.Future[object]:
+    def _link(self) -> utils.Future[object]:
         """TODO"""
 
         return self._volume_link
@@ -83,17 +63,8 @@ class Component(v1.component.Component):
             components.Volume(link=self._link)
         ]
 
-    def on_create(self):
+    def on_apply(self):
         """TODO"""
 
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self._volume_link = self.binds.vol.create(self.name,
-                                                  self.parameters["size"])
+        self._volume_link = self.interfaces.vol.create(self.name,
+                                                       self.parameters["size"])

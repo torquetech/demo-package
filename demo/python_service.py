@@ -9,13 +9,14 @@ from torque import v1
 from demo import components
 from demo import providers
 from demo import python_app
+from demo import utils
 
 
 class Component(python_app.Component):
     """TODO"""
 
     # pylint: disable=W0212
-    _CONFIGURATION = v1.utils.merge_dicts(python_app.Component._CONFIGURATION, {
+    CONFIGURATION = v1.utils.merge_dicts(python_app.Component.CONFIGURATION, {
         "defaults": {
             "port": 8080
         },
@@ -40,7 +41,7 @@ class Component(python_app.Component):
 
         self._service_link = None
 
-    def _link(self) -> v1.utils.Future[object]:
+    def _link(self) -> utils.Future[object]:
         """TODO"""
 
         return self._service_link
@@ -49,15 +50,16 @@ class Component(python_app.Component):
         """TODO"""
 
         return super().on_interfaces() + [
+            components.Service(link=self._link),
             components.HttpService(link=self._link)
         ]
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
-        self._service_link = self.binds.services.create(self.name,
-                                                        "tcp",
-                                                        self.configuration["port"],
-                                                        self.configuration["port"])
+        self._service_link = self.interfaces.services.create(self.name,
+                                                            "tcp",
+                                                            self.configuration["port"],
+                                                            self.configuration["port"])
 
-        super().on_apply(deployment)
+        super().on_apply()

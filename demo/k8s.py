@@ -23,62 +23,288 @@ from demo import types
 from demo import utils
 
 
-class Images(providers.Images):
+def _process_futures(obj: object) -> object:
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
+    if isinstance(obj, dict):
+        return {
+            k: _process_futures(v) for k, v in obj.items()
+        }
+
+    if isinstance(obj, list):
+        return [
+            _process_futures(v) for v in obj
+        ]
+
+    if isinstance(obj, utils.Future):
+        return _process_futures(obj.get())
+
+    if callable(obj):
+        return _process_futures(obj())
+
+    return obj
+
+
+class Provider(v1.provider.Provider):
+    """TODO"""
+
+    CONFIGURATION = {
+        "defaults": {
+            "registry": {
+                "server": "index.docker.io",
+                "namespace": "user"
+            }
+        },
+        "schema": {
+            "registry": {
+                "server": str,
+                "namespace": str
+            }
+        }
     }
 
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self._images = []
+        self._targets = {}
+        self._load_balancer = False
+
+        self._lock = threading.Lock()
+
+        with self.context as ctx:
+            ctx.add_hook("apply", self._apply)
+            ctx.add_hook("delete", self._delete)
+
+    def _push_images(self):
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
+        cmd = [
+            "docker", "login",
+            self.configuration["registry"]["server"]
+        ]
 
-    @classmethod
-    def on_requirements(cls) -> dict:
+        print(f"+ {' '.join(cmd)}")
+        subprocess.run(cmd,
+                       env=os.environ,
+                       cwd=self.context.path(),
+                       check=True)
+
+        ns = self.namespace()
+
+        for image in self._images:
+            if ns:
+                namespaced_image = f"{self.namespace()}/{image}"
+
+                cmd = [
+                    "docker", "tag",
+                    image, namespaced_image
+                ]
+
+                print(f"+ {' '.join(cmd)}")
+                subprocess.run(cmd,
+                               env=os.environ,
+                               cwd=self.context.path(),
+                               check=True)
+
+            cmd = [
+                "docker", "push",
+                namespaced_image
+            ]
+
+            print(f"+ {' '.join(cmd)}")
+            subprocess.run(cmd,
+                           env=os.environ,
+                           cwd=self.context.path(),
+                           check=True)
+
+    def _apply_targets(self):
         """TODO"""
 
-        return {}
+        target_path = f"{self.context.path()}/helm"
+
+        try:
+            shutil.rmtree(target_path)
+
+        except FileNotFoundError:
+            pass
+
+        os.makedirs(f"{target_path}/templates")
+
+        targets = _process_futures(self._targets)
+
+        chart = {
+            "apiVersion": "v2",
+            "name": utils.normalize(self.context.deployment_name),
+            "type": "application",
+            "version": "0.1.0",
+            "appVersion": "1.16.0"
+        }
+
+        for name, target in targets.items():
+            with open(f"{target_path}/templates/{name}.yaml", "w", encoding="utf8") as file:
+                objs = [
+                    yaml.safe_dump(obj, sort_keys=False) for obj in target
+                ]
+
+                file.write("---\n".join(objs))
+
+        with open(f"{target_path}/Chart.yaml", "w", encoding="utf8") as file:
+            file.write(yaml.safe_dump(chart, sort_keys=False))
+
+    def _print_info(self):
+        """TODO"""
+
+        if not self._load_balancer:
+            return
+
+        retrys = 10
+
+        while retrys != 0:
+            cmd = [
+                "kubectl", "get",
+                "-o", "json",
+                "--namespace", "ingress-nginx",
+                "service/ingress-nginx-controller"
+            ]
+
+            print(f"+ {' '.join(cmd)}")
+            p = subprocess.run(cmd,
+                               env=os.environ,
+                               cwd=self.context.path(),
+                               check=True,
+                               capture_output=True)
+
+            ingress_ctrl = json.loads(p.stdout.decode("utf8"))
+
+            try:
+                lb = ingress_ctrl["status"]["loadBalancer"]
+
+                ingress = lb["ingress"][0]
+                lb_host = ingress["hostname"]
+
+                break
+
+            except IndexError:
+                pass
+
+            except KeyError:
+                pass
+
+            time.sleep(1)
+            retrys -= 1
+
+        if retrys == 0:
+            return
+
+        print("\n" f"Load balancer: http://{lb_host}")
+
+    def _apply(self):
+        """TODO"""
+
+        self._apply_targets()
+        self._push_images()
+
+        cmd = [
+            "helm", "upgrade",
+            "-i", utils.normalize(self.context.deployment_name), "helm",
+            "--debug"
+        ]
+
+        print(f"+ {' '.join(cmd)}")
+        print(self.context.path())
+        subprocess.run(cmd, env=os.environ, cwd=self.context.path(), check=True)
+
+        self._print_info()
+
+    def _delete(self):
+        """TODO"""
+
+        cmd = [
+            "helm", "uninstall",
+            utils.normalize(self.context.deployment_name),
+            "--debug"
+        ]
+
+        print(f"+ {' '.join(cmd)}")
+        subprocess.run(cmd, env=os.environ, cwd=self.context.path(), check=False)
+
+    def namespace(self) -> str:
+        """TODO"""
+
+        return self.configuration["registry"]["namespace"]
+
+    def add_image(self, image: str):
+        """TODO"""
+
+        with self._lock:
+            self._images.append(image)
+
+    def add_load_balancer(self) -> bool:
+        """TODO"""
+
+        with self._lock:
+            if self._load_balancer:
+                raise RuntimeError("multiple load balancers not supported")
+
+            self._load_balancer = True
+
+    def add_to_target(self, name: str, objs: [dict]):
+        """TODO"""
+
+        with self._lock:
+            if name not in self._targets:
+                self._targets[name] = []
+
+            self._targets[name] += objs
+
+
+class Images(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Images
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     def push(self, image: str) -> str:
         """TODO"""
 
-        self.provider.add_image(image)
+        self.interfaces.k8s.add_image(image)
 
-        ns = self.provider.namespace()
+        ns = self.interfaces.k8s.namespace()
 
         if ns:
-            return f"{self.provider.namespace()}/{image}"
+            return f"{ns}/{image}"
 
         return image
 
 
-class Secrets(providers.Secrets):
+class Secrets(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Secrets
 
     @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def on_requirements(cls) -> dict[str, object]:
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     @staticmethod
     def encode_b64(string: str) -> str:
@@ -108,37 +334,32 @@ class Secrets(providers.Secrets):
             "type": "Opaque"
         }
 
-    def create(self, name: str, entries: [types.KeyValue]) -> v1.utils.Future[object]:
+    def create(self, name: str, entries: [types.KeyValue]) -> utils.Future[object]:
         """TODO"""
 
-        self.provider.add_to_target(f"component_{name}", [
+        self.interfaces.k8s.add_to_target(f"component_{name}", [
             self._k8s_create(name, entries)
         ])
 
-        return v1.utils.Future(name)
+        return utils.Future(name)
 
 
-class Services(providers.Services):
+class Services(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Services
 
     @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def on_requirements(cls) -> dict[str, object]:
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     def _k8s_create(self, name: str, type: str, port: int, target_port: int) -> dict:
         """TODO"""
@@ -163,37 +384,32 @@ class Services(providers.Services):
             }
         }
 
-    def create(self, name: str, type: str, port: int, target_port: int) -> v1.utils.Future[object]:
+    def create(self, name: str, type: str, port: int, target_port: int) -> utils.Future[object]:
         """TODO"""
 
-        self.provider.add_to_target(f"component_{name}", [
+        self.interfaces.k8s.add_to_target(f"component_{name}", [
             self._k8s_create(name, type, port, target_port),
         ])
 
-        return v1.utils.Future((type.lower(), name, port))
+        return utils.Future((type.lower(), name, port))
 
 
-class Deployments(providers.Deployments):
+class Deployments(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
+    PROVIDER = Provider
+    IMPLEMENTS = providers.Deployments
 
     @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def on_requirements(cls) -> dict[str, object]:
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     def _convert_environment(self, env: [types.KeyValue]) -> [dict]:
         """TODO"""
@@ -360,7 +576,7 @@ class Deployments(providers.Deployments):
                secret_links: [types.SecretLink]):
         """TODO"""
 
-        self.provider.add_to_target(f"component_{name}", [
+        self.interfaces.k8s.add_to_target(f"component_{name}", [
             self._k8s_create(name,
                              image,
                              cmd,
@@ -374,71 +590,60 @@ class Deployments(providers.Deployments):
         ])
 
 
-class PersistentVolumes(providers.PersistentVolumes):
+class PersistentVolumes(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
+    PROVIDER = Provider
+    IMPLEMENTS = providers.PersistentVolumes
 
     @classmethod
     def on_requirements(cls) -> dict:
         """TODO"""
 
         return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            },
             "vol": {
                 "interface": providers.PersistentVolumesProvider,
                 "required": True
             }
         }
 
-    def create(self, name: str, size: int) -> v1.utils.Future[object]:
+    def create(self, name: str, size: int) -> utils.Future[object]:
         """TODO"""
 
-        return v1.utils.Future({
+        return utils.Future({
             "name": utils.normalize(name),
             "awsElasticBlockStore": {
-                "volumeID": self.binds.vol.create(name, size),
+                "volumeID": self.interfaces.vol.create(name, size),
                 "fsType": "ext4"
             }
         })
 
 
-class HttpLoadBalancers(providers.HttpLoadBalancers):
+class HttpLoadBalancers(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
+    PROVIDER = Provider
+    IMPLEMENTS = providers.HttpLoadBalancers
 
     @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def on_requirements(cls) -> dict[str, object]:
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     def create(self):
         """TODO"""
 
-        self.provider.add_load_balancer()
+        self.interfaces.k8s.add_load_balancer()
 
         templates = utils.load_file(f"{utils.module_path()}/templates/http_lb.yaml.template")
         templates = templates.split("---")
@@ -446,31 +651,26 @@ class HttpLoadBalancers(providers.HttpLoadBalancers):
         templates = map(jinja2.Template, templates)
 
         for template in templates:
-            self.provider.add_to_target("k8s_http_load_balancer",
+            self.interfaces.k8s.add_to_target("k8s_http_load_balancer",
                                         [yaml.safe_load(template.render())])
 
 
-class HttpIngressLinks(providers.HttpIngressLinks):
+class HttpIngressLinks(v1.bond.Bond):
     """TODO"""
 
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
+    PROVIDER = Provider
+    IMPLEMENTS = providers.HttpIngressLinks
 
     @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
+    def on_requirements(cls) -> dict[str, object]:
         """TODO"""
 
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
+        return {
+            "k8s": {
+                "interface": Provider,
+                "required": True
+            }
+        }
 
     def _convert_network_link(self, path: str, network_link: types.NetworkLink) -> dict:
         """TODO"""
@@ -515,252 +715,6 @@ class HttpIngressLinks(providers.HttpIngressLinks):
     def create(self, name: str, path: str, network_link: types.NetworkLink):
         """TODO"""
 
-        self.provider.add_to_target(f"component_{name}", [
+        self.interfaces.k8s.add_to_target(f"component_{name}", [
             self._k8s_create(name, path, network_link)
         ])
-
-
-def _process_futures(obj: object) -> object:
-    """TODO"""
-
-    if isinstance(obj, dict):
-        return {
-            k: _process_futures(v) for k, v in obj.items()
-        }
-
-    if isinstance(obj, list):
-        return [
-            _process_futures(v) for v in obj
-        ]
-
-    if isinstance(obj, v1.utils.Future):
-        return _process_futures(obj.get())
-
-    if callable(obj):
-        return _process_futures(obj())
-
-    return obj
-
-
-class Provider(v1.provider.Provider):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {
-            "registry": {
-                "server": "index.docker.io",
-                "namespace": "user"
-            }
-        },
-        "schema": {
-            "registry": {
-                "server": str,
-                "namespace": str
-            }
-        }
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self._images = []
-        self._targets = {}
-        self._load_balancer = False
-
-        self._lock = threading.Lock()
-
-    def _push_images(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        cmd = [
-            "docker", "login",
-            self.configuration["registry"]["server"]
-        ]
-
-        print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd,
-                       env=os.environ,
-                       cwd=deployment.path,
-                       check=True)
-
-        ns = self.namespace()
-
-        for image in self._images:
-            if ns:
-                namespaced_image = f"{self.namespace()}/{image}"
-
-                cmd = [
-                    "docker", "tag",
-                    image, namespaced_image
-                ]
-
-                print(f"+ {' '.join(cmd)}")
-                subprocess.run(cmd,
-                               env=os.environ,
-                               cwd=deployment.path,
-                               check=True)
-
-            cmd = [
-                "docker", "push",
-                namespaced_image
-            ]
-
-            print(f"+ {' '.join(cmd)}")
-            subprocess.run(cmd,
-                           env=os.environ,
-                           cwd=deployment.path,
-                           check=True)
-
-    def _apply_targets(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        target_path = f"{deployment.path}/helm"
-
-        try:
-            shutil.rmtree(target_path)
-
-        except FileNotFoundError:
-            pass
-
-        os.makedirs(f"{target_path}/templates")
-
-        targets = _process_futures(self._targets)
-
-        chart = {
-            "apiVersion": "v2",
-            "name": utils.normalize(deployment.name),
-            "type": "application",
-            "version": "0.1.0",
-            "appVersion": "1.16.0"
-        }
-
-        for name, target in targets.items():
-            with open(f"{target_path}/templates/{name}.yaml", "w", encoding="utf8") as file:
-                objs = [
-                    yaml.safe_dump(obj, sort_keys=False) for obj in target
-                ]
-
-                file.write("---\n".join(objs))
-
-        with open(f"{target_path}/Chart.yaml", "w", encoding="utf8") as file:
-            file.write(yaml.safe_dump(chart, sort_keys=False))
-
-    def _print_info(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        if not self._load_balancer:
-            return
-
-        retrys = 10
-
-        while retrys != 0:
-            cmd = [
-                "kubectl", "get",
-                "-o", "json",
-                "--namespace", "ingress-nginx",
-                "service/ingress-nginx-controller"
-            ]
-
-            print(f"+ {' '.join(cmd)}")
-            p = subprocess.run(cmd,
-                           env=os.environ,
-                           cwd=deployment.path,
-                           check=True,
-                           capture_output=True)
-
-            ingress_ctrl = json.loads(p.stdout.decode("utf8"))
-
-            try:
-                lb = ingress_ctrl["status"]["loadBalancer"]
-
-                ingress = lb["ingress"][0]
-                lb_host = ingress["hostname"]
-
-                break
-
-            except IndexError:
-                pass
-
-            except KeyError:
-                pass
-
-            time.sleep(1)
-            retrys -= 1
-
-        if retrys == 0:
-            return
-
-        print("\n" f"Load balancer: http://{lb_host}")
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self._apply_targets(deployment)
-
-        if deployment.dry_run:
-            return
-
-        self._push_images(deployment)
-
-        cmd = [
-            "helm", "upgrade",
-            "-i", utils.normalize(deployment.name), "helm",
-            "--debug"
-        ]
-
-        print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd, env=os.environ, cwd=deployment.path, check=True)
-
-        self._print_info(deployment)
-
-    def on_delete(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        if deployment.dry_run:
-            return
-
-        cmd = [
-            "helm", "uninstall",
-            utils.normalize(deployment.name),
-            "--debug"
-        ]
-
-        print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd, env=os.environ, cwd=deployment.path, check=False)
-
-    def namespace(self) -> str:
-        """TODO"""
-
-        return self.configuration["registry"]["namespace"]
-
-    def add_image(self, image: str):
-        """TODO"""
-
-        with self._lock:
-            self._images.append(image)
-
-    def add_load_balancer(self) -> bool:
-        """TODO"""
-
-        with self._lock:
-            if self._load_balancer:
-                raise RuntimeError("multiple load balancers not supported")
-
-            self._load_balancer = True
-
-    def add_to_target(self, name: str, objs: [dict]):
-        """TODO"""
-
-        with self._lock:
-            if name not in self._targets:
-                self._targets[name] = []
-
-            self._targets[name] += objs

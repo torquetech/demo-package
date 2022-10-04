@@ -10,36 +10,11 @@ from demo import components
 from demo import providers
 from demo import types
 from demo import volume
+from demo import utils
 
 
 class Component(v1.component.Component):
     """TODO"""
-
-    _PARAMETERS = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -66,13 +41,13 @@ class Component(v1.component.Component):
     def _image(self) -> str:
         return f"postgres:{self.configuration['version']}"
 
-    def _add_volume_link(self, name: str, mount_path: str, link: v1.utils.Future[object]):
+    def _add_volume_link(self, name: str, mount_path: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.VolumeLink(name, mount_path, link)
         self._volume_links.append(link)
 
-    def _link(self) -> v1.utils.Future[object]:
+    def _link(self) -> utils.Future[object]:
         """TODO"""
 
         return self._service_link
@@ -82,7 +57,7 @@ class Component(v1.component.Component):
 
         return "/bitnami/kafka"
 
-    def _zookeeper(self, link: v1.utils.Future[object]):
+    def _zookeeper(self, link: utils.Future[object]):
         """TODO"""
 
         if self._zookeeper_link:
@@ -95,24 +70,16 @@ class Component(v1.component.Component):
 
         return [
             components.VolumeLink(add=self._add_volume_link),
-            components.KafkaService(link=self._link,
-                                    data_path=self._data_path,
-                                    zookeeper=self._zookeeper)
+            components.Service(link=self._link),
+            components.KafkaService(link=self._link),
+            components.Kafka(data_path=self._data_path,
+                             zookeeper=self._zookeeper)
         ]
 
-    def on_create(self):
+    def on_apply(self):
         """TODO"""
 
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self._service_link = self.binds.services.create(self.name, "tcp", 9092, 9092)
+        self._service_link = self.interfaces.services.create(self.name, "tcp", 9092, 9092)
 
         zk_link = self._zookeeper_link.get()
 
@@ -121,22 +88,22 @@ class Component(v1.component.Component):
             types.KeyValue("ALLOW_PLAINTEXT_LISTENER", "yes")
         ]
 
-        self.binds.deployments.create(self.name,
-                                      "bitnami/kafka:latest",
-                                      None,
-                                      None,
-                                      None,
-                                      env,
-                                      None,
-                                      None,
-                                      self._volume_links,
-                                      None)
+        self.interfaces.deployments.create(self.name,
+                                           "bitnami/kafka:latest",
+                                           None,
+                                           None,
+                                           None,
+                                           env,
+                                           None,
+                                           None,
+                                           self._volume_links,
+                                           None)
 
 
 class DataLink(volume.Link):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {}
     }
@@ -147,48 +114,21 @@ class DataLink(volume.Link):
 
         return super().on_requirements() | {
             "kafka": {
-                "interface": components.KafkaService,
-                "bind_to": "destination",
+                "interface": components.Kafka,
                 "required": True
             },
         }
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
-        self.binds.dst.add(self.source,
-                           self.binds.kafka.data_path(),
-                           self.binds.src.link())
+        self.interfaces.dst.add(self.source,
+                                self.interfaces.kafka.data_path(),
+                                self.interfaces.src.link())
 
 
 class ZookeeperLink(v1.link.Link):
     """TODO"""
-
-    _PARAMETERS = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    _CONFIGURATION = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -197,26 +137,15 @@ class ZookeeperLink(v1.link.Link):
         return {
             "zk": {
                 "interface": components.ZookeeperService,
-                "bind_to": "source",
                 "required": True
             },
             "kafka": {
-                "interface": components.KafkaService,
-                "bind_to": "destination",
+                "interface": components.Kafka,
                 "required": True
             }
         }
 
-    def on_create(self):
+    def on_apply(self):
         """TODO"""
 
-    def on_remove(self):
-        """TODO"""
-
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self.binds.kafka.zookeeper(self.binds.zk.link())
+        self.interfaces.kafka.zookeeper(self.interfaces.zk.link())

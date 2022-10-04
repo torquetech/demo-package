@@ -16,41 +16,14 @@ from demo import volume
 class Component(v1.component.Component):
     """TODO"""
 
-    _PARAMETERS = {
-        "defaults": {},
-        "schema": {}
-    }
-
-    _CONFIGURATION = {
+    CONFIGURATION = {
         "defaults": {
-            "version": "14.2",
-            "password": None
+            "version": "14.2"
         },
         "schema": {
-            "version": str,
-            "password": str
+            "version": str
         }
     }
-
-    @classmethod
-    def on_parameters(cls, parameters: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._PARAMETERS["schema"],
-                                        cls._PARAMETERS["defaults"],
-                                        parameters)
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        defaults = v1.utils.merge_dicts(cls._CONFIGURATION["defaults"], {
-            "password": utils.generate_password()
-        })
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        defaults,
-                                        configuration)
 
     @classmethod
     def on_requirements(cls) -> dict:
@@ -81,18 +54,18 @@ class Component(v1.component.Component):
     def _image(self) -> str:
         return f"postgres:{self.configuration['version']}"
 
-    def _add_volume_link(self, name: str, mount_path: str, link: v1.utils.Future[object]):
+    def _add_volume_link(self, name: str, mount_path: str, link: utils.Future[object]):
         """TODO"""
 
         link = types.VolumeLink(name, mount_path, link)
         self._volume_links.append(link)
 
-    def _link(self) -> v1.utils.Future[object]:
+    def _link(self) -> utils.Future[object]:
         """TODO"""
 
         return self._service_link
 
-    def _admin(self) -> v1.utils.Future[object]:
+    def _admin(self) -> utils.Future[object]:
         """TODO"""
 
         return self._secret_link
@@ -107,29 +80,24 @@ class Component(v1.component.Component):
 
         return [
             components.VolumeLink(add=self._add_volume_link),
+            components.Service(link=self._link),
             components.PostgresService(link=self._link,
-                                       admin=self._admin,
-                                       data_path=self._data_path)
+                                       admin=self._admin),
+            components.Postgres(data_path=self._data_path)
         ]
 
-    def on_create(self):
+    def on_apply(self):
         """TODO"""
 
-    def on_remove(self):
-        """TODO"""
+        with self.context as ctx:
+            password = ctx.secret(self.name, "postgres")
 
-    def on_build(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-    def on_apply(self, deployment: v1.deployment.Deployment):
-        """TODO"""
-
-        self._secret_link = self.binds.secrets.create(f"{self.name}_admin", [
+        self._secret_link = self.interfaces.secrets.create(f"{self.name}_admin", [
             types.KeyValue("user", "postgres"),
-            types.KeyValue("password", self.configuration["password"])
+            types.KeyValue("password", password)
         ])
 
-        self._service_link = self.binds.services.create(self.name, "tcp", 5432, 5432)
+        self._service_link = self.interfaces.services.create(self.name, "tcp", 5432, 5432)
 
         env = [
             types.KeyValue("PGDATA", f"/data/{self.configuration['version']}")
@@ -139,22 +107,22 @@ class Component(v1.component.Component):
             types.SecretLink("POSTGRES_PASSWORD", "password", self._secret_link)
         ]
 
-        self.binds.deployments.create(self.name,
-                                      self._image(),
-                                      None,
-                                      None,
-                                      None,
-                                      env,
-                                      None,
-                                      None,
-                                      self._volume_links,
-                                      secret_links)
+        self.interfaces.deployments.create(self.name,
+                                           self._image(),
+                                           None,
+                                           None,
+                                           None,
+                                           env,
+                                           None,
+                                           None,
+                                           self._volume_links,
+                                           secret_links)
 
 
 class DataLink(volume.Link):
     """TODO"""
 
-    _PARAMETERS = {
+    PARAMETERS = {
         "defaults": {},
         "schema": {}
     }
@@ -165,15 +133,14 @@ class DataLink(volume.Link):
 
         return super().on_requirements() | {
             "pg": {
-                "interface": components.PostgresService,
-                "bind_to": "destination",
+                "interface": components.Postgres,
                 "required": True
             },
         }
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def on_apply(self):
         """TODO"""
 
-        self.binds.dst.add(self.source,
-                           self.binds.pg.data_path(),
-                           self.binds.src.link())
+        self.interfaces.dst.add(self.source,
+                                self.interfaces.pg.data_path(),
+                                self.interfaces.src.link())

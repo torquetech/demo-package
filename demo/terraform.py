@@ -14,6 +14,7 @@ import typing
 from torque import v1
 
 from demo import providers
+from demo import utils
 
 
 class _Block:
@@ -28,6 +29,7 @@ class _Block:
         args = " ".join(args)
 
         return f"{self._name} {args}"
+
 
 class _Key:
     """TODO"""
@@ -113,64 +115,10 @@ def _to_tf(obj: dict, level: int) -> str:
     return string
 
 
-class PersistentVolumesProvider(providers.PersistentVolumesProvider):
-    """TODO"""
-
-    _CONFIGURATION = {
-        "defaults": {
-            "zone": "us-east-1a",
-            "type": "gp2"
-        },
-        "schema": {
-            "zone": str,
-            "type": str
-        }
-    }
-
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
-    @classmethod
-    def on_requirements(cls) -> dict:
-        """TODO"""
-
-        return {}
-
-    def create(self, name: str, size: int) -> v1.utils.Future[str]:
-        """TODO"""
-
-        self.provider.add_target(_Block("resource", "aws_ebs_volume", name), {
-            _Key("availability_zone"): _Str(self.configuration["zone"]),
-            _Key("type"): _Str(self.configuration["type"]),
-            _Key("size"): _Int(size)
-        })
-
-        def resolve_future(future: v1.utils.Future[object], state: dict):
-            if state is None:
-                future.set(f"<{name}_id>")
-                return
-
-            resources = state["values"]["root_module"]["resources"]
-
-            for resource in resources:
-                if resource["name"] == name:
-                    future.set(resource["values"]["id"])
-                    return
-
-            raise RuntimeError("{name}: terraform resource not found")
-
-        return self.provider.add_future(resolve_future)
-
-
 class Provider(v1.provider.Provider):
     """TODO"""
 
-    _CONFIGURATION = {
+    CONFIGURATION = {
         "defaults": {
             "aws": {
                 "region": "us-east-1",
@@ -191,14 +139,6 @@ class Provider(v1.provider.Provider):
         }
     }
 
-    @classmethod
-    def on_configuration(cls, configuration: dict) -> dict:
-        """TODO"""
-
-        return v1.utils.validate_schema(cls._CONFIGURATION["schema"],
-                                        cls._CONFIGURATION["defaults"],
-                                        configuration)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -207,6 +147,10 @@ class Provider(v1.provider.Provider):
         self._lock = threading.Lock()
 
         self._setup_aws_provider()
+
+        with self.context as ctx:
+            ctx.add_hook("apply", self._apply)
+            ctx.add_hook("delete", self._delete)
 
     def _setup_aws_provider(self):
         """TODO"""
@@ -231,17 +175,11 @@ class Provider(v1.provider.Provider):
             _Key("region"): _Str(config["region"])
         }
 
-    def on_apply(self, deployment: v1.deployment.Deployment):
+    def _apply(self):
         """TODO"""
 
-        with open(f"{deployment.path}/main.tf", "w", encoding="utf8") as file:
+        with open(f"{self.context.path()}/main.tf", "w", encoding="utf8") as file:
             file.write(_to_tf(self._targets, 0))
-
-        if deployment.dry_run:
-            for future in self._futures:
-                future(None)
-
-            return
 
         cmd = [
             "terraform", "init"
@@ -250,7 +188,7 @@ class Provider(v1.provider.Provider):
         print(f"+ {' '.join(cmd)}")
         subprocess.run(cmd,
                        env=os.environ,
-                       cwd=deployment.path,
+                       cwd=self.context.path(),
                        check=True)
 
         cmd = [
@@ -261,7 +199,7 @@ class Provider(v1.provider.Provider):
         print(f"+ {' '.join(cmd)}")
         subprocess.run(cmd,
                        env=os.environ,
-                       cwd=deployment.path,
+                       cwd=self.context.path(),
                        check=True)
 
         cmd = [
@@ -272,7 +210,7 @@ class Provider(v1.provider.Provider):
         print(f"+ {' '.join(cmd)}")
         p = subprocess.run(cmd,
                            env=os.environ,
-                           cwd=deployment.path,
+                           cwd=self.context.path(),
                            check=True,
                            capture_output=True)
 
@@ -281,11 +219,8 @@ class Provider(v1.provider.Provider):
         for future in self._futures:
             future(state)
 
-    def on_delete(self, deployment: v1.deployment.Deployment):
+    def _delete(self):
         """TODO"""
-
-        if deployment.dry_run:
-            return
 
         cmd = [
             "terraform", "apply",
@@ -293,7 +228,7 @@ class Provider(v1.provider.Provider):
         ]
 
         print(f"+ {' '.join(cmd)}")
-        subprocess.run(cmd, env=os.environ, cwd=deployment.path, check=False)
+        subprocess.run(cmd, env=os.environ, cwd=self.context.path(), check=False)
 
     def add_target(self, key: object, value: object):
         """TODO"""
@@ -301,12 +236,69 @@ class Provider(v1.provider.Provider):
         with self._lock:
             self._targets[key] = value
 
-    def add_future(self, resolve_future: typing.Callable) -> v1.utils.Future[object]:
+    def add_future(self, resolve_future: typing.Callable) -> utils.Future[object]:
         """TODO"""
 
-        future = v1.utils.Future()
+        future = utils.Future()
 
         with self._lock:
             self._futures.append(functools.partial(resolve_future, future))
 
         return future
+
+
+class PersistentVolumesProvider(v1.bond.Bond):
+    """TODO"""
+
+    PROVIDER = Provider
+    IMPLEMENTS = providers.PersistentVolumesProvider
+
+    CONFIGURATION = {
+        "defaults": {
+            "zone": "us-east-1a",
+            "type": "gp2"
+        },
+        "schema": {
+            "zone": str,
+            "type": str
+        }
+    }
+
+    @classmethod
+    def on_requirements(cls) -> dict[str, object]:
+        """TODO"""
+
+        return {
+            "tf": {
+                "interface": Provider,
+                "required": True
+            }
+        }
+
+    def create(self, name: str, size: int) -> utils.Future[str]:
+        """TODO"""
+
+        name = f"{self.context.deployment_name}.{name}"
+        name = name.replace(".", "-")
+
+        self.interfaces.tf.add_target(_Block("resource", "aws_ebs_volume", name), {
+            _Key("availability_zone"): _Str(self.configuration["zone"]),
+            _Key("type"): _Str(self.configuration["type"]),
+            _Key("size"): _Int(size)
+        })
+
+        def resolve_future(future: utils.Future[object], state: dict):
+            if state is None:
+                future.set(f"<{name}_id>")
+                return
+
+            resources = state["values"]["root_module"]["resources"]
+
+            for resource in resources:
+                if resource["name"] == name:
+                    future.set(resource["values"]["id"])
+                    return
+
+            raise RuntimeError("{name}: terraform resource not found")
+
+        return self.interfaces.tf.add_future(resolve_future)
